@@ -2,11 +2,9 @@
 set -e
 
 # ─── Operations Summit Day 1 — Full Edit ───────────────────────────────────
-# Opener (25s) + 7 kept segments with 5 crossfades + 1 hard cut
+# Opener (20s) crossfades into content (1s dissolve, music under speaking)
+# 7 kept segments with 5 crossfades (2s each) + 1 hard cut
 # Studio sound on content audio, chapter markers embedded
-#
-# Final duration: ~2h 49m 35s
-# Expected render time: ~1-2 hours on Apple Silicon
 
 SRC="/Users/todellington/Downloads/Operations Summit_ The Engine behind the Experience Day 1 - 2026_03_24 09_41 EDT - Recording.mp4"
 OPENER="/Users/todellington/videointro/out/summit-day1.mp4"
@@ -15,80 +13,84 @@ WORKDIR="/Users/todellington/videointro/work"
 
 mkdir -p "$WORKDIR"
 
-# ── Chapter metadata ──
+# ── Segment math ──────────────────────────────────────────────────────────
+# Seg durations: 2108.2  351.8  52.7  877.7  408.4  2338.9  4017.7
+#
+# Content xfade offsets (2s crossfades):
+#   xf1: 2108.2-2     = 2106.2   → cumul dur = 2458.0
+#   xf2: 2458.0-2     = 2456.0   → cumul dur = 2508.7
+#   xf3: 2508.7-2     = 2506.7   → cumul dur = 3384.4
+#   xf4: 3384.4-2     = 3382.4   → cumul dur = 3790.8
+#   xf5: 3790.8-2     = 3788.8   → cumul dur = 6127.7
+#   concat seg7:                   → cumul dur = 10145.4
+#
+# Opener (20s) → content xfade: 1s at offset 19
+# Total output: 20 + 10145.4 - 1 = 10164.4s ≈ 2h 49m 24s
+#
+# Chapter timestamps (output seconds):
+#   Intro:                0
+#   Welcome:              19.0    (content t=0)
+#   Decision Making:      2125.2  (content xf1 = 2106.2 + 19)
+#   Communication:        2525.7  (content xf3 = 2506.7 + 19)
+#   Customer Ops:         3401.4  (content xf4 = 3382.4 + 19)
+#   Operational Impact:   3807.8  (content xf5 = 3788.8 + 19)
+#   Wrap-Up:              6146.7  (content concat = 6127.7 + 19)
+
 cat > "$WORKDIR/chapters.txt" << 'FFMETA'
 ;FFMETADATA1
 
 [CHAPTER]
 TIMEBASE=1/1000
 START=0
-END=24999
+END=18999
 title=Intro
 
 [CHAPTER]
 TIMEBASE=1/1000
-START=25000
-END=2132199
+START=19000
+END=2125199
 title=Welcome & Framing
 
 [CHAPTER]
 TIMEBASE=1/1000
-START=2132200
-END=2534699
+START=2125200
+END=2525699
 title=Empowered Decision Making
 
 [CHAPTER]
 TIMEBASE=1/1000
-START=2534700
-END=3411399
+START=2525700
+END=3401399
 title=Communication That Builds Trust
 
 [CHAPTER]
 TIMEBASE=1/1000
-START=3411400
-END=3818799
+START=3401400
+END=3807799
 title=Customer Obsessed Operations
 
 [CHAPTER]
 TIMEBASE=1/1000
-START=3818800
-END=6157699
+START=3807800
+END=6146699
 title=Operational Impact
 
 [CHAPTER]
 TIMEBASE=1/1000
-START=6157700
-END=10175400
+START=6146700
+END=10164400
 title=Ownership Commitments & Wrap-Up
 FFMETA
-
-# ── Segment map ──
-# Kept segments from source (start → duration):
-#   Seg1: 00:06.8 → 35:15.0   (2108.2s)  — Welcome & Framing
-#   Seg2: 45:54.2 → 51:46.0   (351.8s)   ─┐ Empowered Decision Making
-#   Seg3: 1:01:55 → 1:02:47.7 (52.7s)    ─┘
-#   Seg4: 1:12:20.2 → 1:26:57.9 (877.7s) — Communication That Builds Trust
-#   Seg5: 1:43:34.9 → 1:50:23.3 (408.4s) — Customer Obsessed Operations
-#   Seg6: 2:08:40.5 → 2:47:39.4 (2338.9s) — Operational Impact
-#   Seg7: 2:52:22.8 → 3:59:20.5 (4017.7s) — Ownership Commitments & Wrap-Up
-#
-# Transitions: xfade (1s dissolve) between 1↔2, 2↔3, 3↔4, 4↔5, 5↔6
-#              hard cut between 6↔7
-#
-# xfade offsets (cumulative in content stream):
-#   xfade1: 2107.2   (seg1 dur - 1)
-#   xfade2: 2458.0   (prev + seg2 dur - 1)
-#   xfade3: 2509.7   (prev + seg3 dur - 1)
-#   xfade4: 3386.4   (prev + seg4 dur - 1)
-#   xfade5: 3793.8   (prev + seg5 dur - 1)
 
 echo "════════════════════════════════════════════════════════════"
 echo " Operations Summit Day 1 — Full Edit"
 echo " Output:   $OUTPUT"
-echo " Duration: ~2h 49m 35s"
+echo " Duration: ~2h 49m 24s"
+echo " Opener:   20s → 1s crossfade into content"
+echo " Breaks:   2s crossfades (5x) + 1 hard cut"
 echo "════════════════════════════════════════════════════════════"
 echo ""
-echo "Starting render — this will take a while..."
+echo "Starting render..."
 START_TIME=$(date +%s)
 
 ffmpeg -y \
@@ -120,22 +122,22 @@ ffmpeg -y \
     [7:v]fps=24,format=yuv420p,setpts=PTS-STARTPTS[v7];
     [7:a]aformat=sample_rates=48000:channel_layouts=stereo,asetpts=PTS-STARTPTS[a7];
 
-    [v1][v2]xfade=transition=fade:duration=1:offset=2107.2[xv1];
-    [xv1][v3]xfade=transition=fade:duration=1:offset=2458.0[xv2];
-    [xv2][v4]xfade=transition=fade:duration=1:offset=2509.7[xv3];
-    [xv3][v5]xfade=transition=fade:duration=1:offset=3386.4[xv4];
-    [xv4][v6]xfade=transition=fade:duration=1:offset=3793.8[xv5];
+    [v1][v2]xfade=transition=fade:duration=2:offset=2106.2[xv1];
+    [xv1][v3]xfade=transition=fade:duration=2:offset=2456.0[xv2];
+    [xv2][v4]xfade=transition=fade:duration=2:offset=2506.7[xv3];
+    [xv3][v5]xfade=transition=fade:duration=2:offset=3382.4[xv4];
+    [xv4][v6]xfade=transition=fade:duration=2:offset=3788.8[xv5];
     [xv5][v7]concat=n=2:v=1:a=0[vcontent];
-    [v0][vcontent]concat=n=2:v=1:a=0[vout];
+    [v0][vcontent]xfade=transition=fade:duration=1:offset=19[vout];
 
-    [a1][a2]acrossfade=d=1:c1=tri:c2=tri[xa1];
-    [xa1][a3]acrossfade=d=1:c1=tri:c2=tri[xa2];
-    [xa2][a4]acrossfade=d=1:c1=tri:c2=tri[xa3];
-    [xa3][a5]acrossfade=d=1:c1=tri:c2=tri[xa4];
-    [xa4][a6]acrossfade=d=1:c1=tri:c2=tri[xa5];
+    [a1][a2]acrossfade=d=2:c1=tri:c2=tri[xa1];
+    [xa1][a3]acrossfade=d=2:c1=tri:c2=tri[xa2];
+    [xa2][a4]acrossfade=d=2:c1=tri:c2=tri[xa3];
+    [xa3][a5]acrossfade=d=2:c1=tri:c2=tri[xa4];
+    [xa4][a6]acrossfade=d=2:c1=tri:c2=tri[xa5];
     [xa5][a7]concat=n=2:v=0:a=1[acontent_raw];
     [acontent_raw]highpass=f=80,afftdn=nt=w:om=o,equalizer=f=180:t=q:w=1:g=-3,equalizer=f=3500:t=q:w=1.5:g=3,acompressor=threshold=-20dB:ratio=3:attack=10:release=200,loudnorm=I=-14:LRA=7:TP=-2[acontent];
-    [a0][acontent]concat=n=2:v=0:a=1[aout]
+    [a0][acontent]acrossfade=d=1:c1=tri:c2=tri[aout]
   " \
   -map "[vout]" -map "[aout]" \
   -map_chapters 8 \
