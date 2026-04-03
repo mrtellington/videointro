@@ -127,7 +127,7 @@ ffmpeg -y \
     [xv2][v4]xfade=transition=fade:duration=2:offset=2506.7[xv3];
     [xv3][v5]xfade=transition=fade:duration=2:offset=3382.4[xv4];
     [xv4][v6]xfade=transition=fade:duration=2:offset=3788.8[xv5];
-    [xv5][v7]concat=n=2:v=1:a=0[vcontent];
+    [xv5][v7]concat=n=2:v=1:a=0,settb=1/24,fps=24[vcontent];
     [v0][vcontent]xfade=transition=fade:duration=1:offset=19[vout];
 
     [a1][a2]acrossfade=d=2:c1=tri:c2=tri[xa1];
