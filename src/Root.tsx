@@ -26,11 +26,17 @@ export const Root: React.FC = () => {
       <Composition
         id="Outro"
         component={Outro}
-        durationInFrames={600}
+        durationInFrames={360}
         fps={30}
         width={1920}
         height={1080}
-        defaultProps={{ music: true } as OutroProps}
+        defaultProps={
+          {
+            title: "2026 Operations Summit",
+            subtitle: "Engine Behind the Experience",
+            date: "Day 1  ·  March 24, 2026",
+          } as OutroProps
+        }
       />
     </>
   );
