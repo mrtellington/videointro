@@ -3,7 +3,6 @@ import {
   AbsoluteFill,
   Audio,
   interpolate,
-  Sequence,
   spring,
   staticFile,
   useCurrentFrame,
@@ -23,15 +22,21 @@ export type OutroProps = {
   music?: boolean;
 };
 
-// ─── 12s (360 frames @ 30fps) — reverse mirror of intro ─────────────────
-// 0–1.5s:   "Thank You!" crashes up from below (kinetic, big)
-// 0.8–2.2s: Title / subtitle / date context fades in below
-// 2.2–5s:   Hold with beat pulse (~100 BPM)
-// 4.7–6.2s: Text flies out to the right (kinetic exit)
-// 5.7–7.7s: Full Whitestone logo slams in from above
-// 7.3–8.8s: Logo cross-dissolves into solo stone
-// 8.5–12s:  Stone pulses with the beat
-// 12s:      Hard cut on a beat
+// ─── 18s (540 frames @ 30fps) — reverse mirror of intro ─────────────────
+//
+//  0–1.3s  (0–40f):    "Thank You!" grows from center
+//  0.7–1.8s (20–55f):  Context (title/subtitle/date) fades in below
+//  1.8–5.3s (55–160f): Hold with beat pulse
+//  5.2–6.5s (155–195f):All text shrinks to 0 from center
+//  6.3–8.3s (190–250f):Full logo grows from center
+//  8.2–9.7s (245–290f):Logo shrinks to 0 from center
+//  9.5–11s  (285–330f):Solo stone grows from center (paths spring in)
+//  11–12s   (330–360f):Stone sits still, centered (moment of calm)
+//  12–15.3s (360–460f):Stone pulses to beat
+//  15–16.5s (450–495f):Music: full mix fades out → bass/kick only
+//  15.8–16.8s(475–505f):Stone shrinks to 0
+//  16.8–17.8s(505–535f):CRT screen-off effect
+//  18s      (540f):     End
 
 export const Outro: React.FC<OutroProps> = ({
   title,
@@ -42,7 +47,7 @@ export const Outro: React.FC<OutroProps> = ({
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // ── Beat pulse (~100 BPM ≈ 18 frames per beat at 30fps) ──
+  // ── Beat pulse (~100 BPM ≈ 18 frames per beat) ──
   const BEAT = 18;
   const beatFrame = frame % BEAT;
   const beatPulse = spring({
@@ -51,166 +56,254 @@ export const Outro: React.FC<OutroProps> = ({
     config: { damping: 5, stiffness: 1200, mass: 0.08 },
   });
 
-  // ── Phase 1: "Thank You!" crashes up from below ──
-  const tyEnter = spring({
+  // ════════════════════════════════════════════════════════════════════════
+  // TEXT PHASE: "Thank You!" + context
+  // ════════════════════════════════════════════════════════════════════════
+
+  // Grow in from center
+  const textGrow = spring({
     frame,
     fps,
     config: { damping: 14, stiffness: 700, mass: 0.45 },
   });
-  const tyY = interpolate(tyEnter, [0, 1], [150, 0]);
-  const tyScale = interpolate(tyEnter, [0, 0.5, 1], [0.85, 1.05, 1]);
+  const textGrowScale = interpolate(textGrow, [0, 1], [0, 1]);
 
-  // ── Phase 2: Context fades in (staggered below Thank You) ──
+  // Context staggers in
   const ctxProgress = spring({
-    frame: frame - 25,
+    frame: frame - 20,
     fps,
     config: { damping: 16, stiffness: 400, mass: 0.5 },
   });
-  const ctxY = interpolate(ctxProgress, [0, 1], [40, 0]);
-  const ctxOpacity = interpolate(frame, [25, 50], [0, 1], {
+  const ctxScale = interpolate(ctxProgress, [0, 1], [0.5, 1]);
+  const ctxOpacity = interpolate(frame, [20, 50], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  // ── Phase 3: Text beat pulse during hold ──
-  const inTextPulse = frame >= 65 && frame < 140;
+  // Beat pulse on text during hold
+  const inTextPulse = frame >= 55 && frame < 155;
   const textPulse = inTextPulse ? 1 + beatPulse * 0.03 : 1;
 
-  // ── Phase 4: Text flies out right ──
-  const textExit = spring({
-    frame: frame - 140,
+  // Text shrinks to 0 from center
+  const textShrink = spring({
+    frame: frame - 155,
     fps,
-    config: { damping: 22, stiffness: 700, mass: 0.5 },
+    config: { damping: 20, stiffness: 400, mass: 0.6 },
   });
-  const textExitX = interpolate(textExit, [0, 1], [0, 1500]);
-  const textExitRotate = interpolate(textExit, [0, 1], [0, 25]);
-  const textOpacity = interpolate(frame, [0, 5, 140, 185], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  const textShrinkScale = interpolate(textShrink, [0, 1], [1, 0]);
 
-  // ── Phase 5: Full logo slams in from above ──
-  const logoEnter = spring({
-    frame: frame - 170,
+  // Combined text scale
+  const textVisible = frame < 195;
+  const textScale = textVisible
+    ? textGrowScale * textPulse * textShrinkScale
+    : 0;
+  const textOpacity = frame < 195 ? 1 : 0;
+
+  // ════════════════════════════════════════════════════════════════════════
+  // LOGO PHASE: grows from center, then shrinks
+  // ════════════════════════════════════════════════════════════════════════
+
+  const logoGrow = spring({
+    frame: frame - 190,
     fps,
-    config: { damping: 12, stiffness: 260, mass: 0.95 },
+    config: { damping: 13, stiffness: 300, mass: 0.8 },
   });
-  const logoSlideY = interpolate(logoEnter, [0, 1], [-380, 0]);
-  const logoSlideScale = interpolate(logoEnter, [0, 1], [0.5, 1]);
-  const logoOpacity = interpolate(frame, [170, 200, 230, 265], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  const logoGrowScale = interpolate(logoGrow, [0, 1], [0, 1]);
 
-  // ── Phase 6: Stone appears as logo fades ──
-  const stoneOpacity = interpolate(frame, [230, 260], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+  const logoShrink = spring({
+    frame: frame - 245,
+    fps,
+    config: { damping: 20, stiffness: 400, mass: 0.6 },
   });
-  const inStonePulse = frame >= 270;
+  const logoShrinkScale = interpolate(logoShrink, [0, 1], [1, 0]);
+
+  const logoVisible = frame >= 190 && frame < 295;
+  const logoScale = logoVisible ? logoGrowScale * logoShrinkScale : 0;
+
+  // ════════════════════════════════════════════════════════════════════════
+  // STONE PHASE: grows from center, sits, pulses, then shrinks
+  // ════════════════════════════════════════════════════════════════════════
+
+  // Stone grows in (paths spring via startFrame prop)
+  const stoneEnter = spring({
+    frame: frame - 285,
+    fps,
+    config: { damping: 13, stiffness: 280, mass: 0.8 },
+  });
+  const stoneEnterScale = interpolate(stoneEnter, [0, 1], [0, 1]);
+
+  // Stone pulse during beat section
+  const inStonePulse = frame >= 360 && frame < 470;
   const stonePulse = inStonePulse ? 1 + beatPulse * 0.05 : 1;
 
+  // Stone shrinks to 0
+  const stoneShrink = spring({
+    frame: frame - 475,
+    fps,
+    config: { damping: 25, stiffness: 600, mass: 0.4 },
+  });
+  const stoneShrinkScale = interpolate(stoneShrink, [0, 1], [1, 0]);
+
+  const stoneVisible = frame >= 285 && frame < 510;
+  const stoneScale = stoneVisible
+    ? stoneEnterScale * stonePulse * stoneShrinkScale
+    : 0;
+
+  // ════════════════════════════════════════════════════════════════════════
+  // SCREEN-OFF EFFECT: CRT collapse after stone disappears
+  // ════════════════════════════════════════════════════════════════════════
+
+  const screenOffActive = frame >= 505;
+  const offProgress = spring({
+    frame: frame - 505,
+    fps,
+    config: { damping: 30, stiffness: 800, mass: 0.3 },
+  });
+  // Squash vertically to a line, then horizontally to a point
+  const screenScaleY = screenOffActive
+    ? interpolate(offProgress, [0, 0.4, 1], [1, 0.003, 0])
+    : 1;
+  const screenScaleX = screenOffActive
+    ? interpolate(offProgress, [0, 0.4, 1], [1, 1, 0])
+    : 1;
+  // Brightness flash during the collapse
+  const screenBrightness = screenOffActive
+    ? interpolate(offProgress, [0, 0.2, 0.5, 1], [1, 1.8, 1.5, 0])
+    : 1;
+
+  // ════════════════════════════════════════════════════════════════════════
+  // AUDIO: Full mix crossfades to bass-only in last 3s
+  // ════════════════════════════════════════════════════════════════════════
+
+  const fullMixVolume = (f: number) => {
+    if (f < 450) return 1;
+    if (f > 495) return 0;
+    return 1 - (f - 450) / 45;
+  };
+
+  const bassVolume = (f: number) => {
+    if (f < 435) return 0;
+    if (f < 470) return (f - 435) / 35; // fade in
+    if (f > 505) return 0;
+    return 1 - (f - 470) / 35; // fade out
+  };
+
   return (
-    <AbsoluteFill style={{ background: "#0e1237" }}>
-      {music && <Audio src={staticFile("vivrant-thing.mp3")} />}
+    <AbsoluteFill style={{ background: "black" }}>
+      {/* Audio layers */}
+      {music && (
+        <>
+          <Audio src={staticFile("vivrant-thing.mp3")} volume={fullMixVolume} />
+          <Audio src={staticFile("vivrant-thing-lp.mp3")} volume={bassVolume} />
+        </>
+      )}
 
-      {/* ── Text phase: Thank You + context ── */}
+      {/* All visual content — affected by screen-off */}
       <AbsoluteFill
         style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: textOpacity,
-          transform: `translateX(${textExitX}px) translateY(${tyY}px) scale(${tyScale * textPulse}) rotate(${textExitRotate}deg)`,
-          fontFamily,
-          textAlign: "center",
+          background: "#0e1237",
+          transform: `scaleY(${screenScaleY}) scaleX(${screenScaleX})`,
+          filter: `brightness(${screenBrightness})`,
         }}
       >
-        <div
-          style={{
-            fontSize: 160,
-            fontWeight: 800,
-            color: "#ffffff",
-            letterSpacing: "-3px",
-            lineHeight: 1.0,
-          }}
-        >
-          Thank You!
-        </div>
-
-        {/* Event context below */}
-        <div
-          style={{
-            opacity: ctxOpacity,
-            transform: `translateY(${ctxY}px)`,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            marginTop: 32,
-          }}
-        >
-          <div
+        {/* ── Text: Thank You + context ── */}
+        {textVisible && (
+          <AbsoluteFill
             style={{
-              fontSize: 42,
-              fontWeight: 600,
-              color: "#00b6bf",
-              letterSpacing: "0.5px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              transform: `scale(${textScale})`,
+              opacity: textOpacity,
+              fontFamily,
+              textAlign: "center",
             }}
           >
-            {title}
-          </div>
-          <div
+            <div
+              style={{
+                fontSize: 160,
+                fontWeight: 800,
+                color: "#ffffff",
+                letterSpacing: "-3px",
+                lineHeight: 1.0,
+              }}
+            >
+              Thank You!
+            </div>
+
+            <div
+              style={{
+                opacity: ctxOpacity,
+                transform: `scale(${ctxScale})`,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                marginTop: 32,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 42,
+                  fontWeight: 600,
+                  color: "#00b6bf",
+                }}
+              >
+                {title}
+              </div>
+              <div
+                style={{
+                  fontSize: 32,
+                  fontWeight: 400,
+                  color: "rgba(255,255,255,0.7)",
+                  marginTop: 12,
+                }}
+              >
+                {subtitle}
+              </div>
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 300,
+                  color: "rgba(255,255,255,0.45)",
+                  marginTop: 16,
+                  letterSpacing: "4px",
+                  textTransform: "uppercase",
+                }}
+              >
+                {date}
+              </div>
+            </div>
+          </AbsoluteFill>
+        )}
+
+        {/* ── Logo: grows then shrinks from center ── */}
+        {logoVisible && (
+          <AbsoluteFill
             style={{
-              fontSize: 32,
-              fontWeight: 400,
-              color: "rgba(255,255,255,0.7)",
-              marginTop: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transform: `scale(${logoScale})`,
             }}
           >
-            {subtitle}
-          </div>
-          <div
+            <FullLogo />
+          </AbsoluteFill>
+        )}
+
+        {/* ── Stone: grows, sits, pulses, shrinks — centered ── */}
+        {stoneVisible && (
+          <AbsoluteFill
             style={{
-              fontSize: 24,
-              fontWeight: 300,
-              color: "rgba(255,255,255,0.45)",
-              marginTop: 16,
-              letterSpacing: "4px",
-              textTransform: "uppercase",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transform: `scale(${stoneScale})`,
             }}
           >
-            {date}
-          </div>
-        </div>
-      </AbsoluteFill>
-
-      {/* ── Logo phase: slams in from above, cross-dissolves out ── */}
-      <AbsoluteFill
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: logoOpacity,
-          transform: `translateY(${logoSlideY}px) scale(${logoSlideScale})`,
-        }}
-      >
-        <FullLogo />
-      </AbsoluteFill>
-
-      {/* ── Stone phase: fades in as logo fades, pulses to the beat ── */}
-      <AbsoluteFill
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: stoneOpacity,
-          transform: `scale(${stonePulse})`,
-        }}
-      >
-        <Sequence from={230}>
-          <StoneIcon />
-        </Sequence>
+            <StoneIcon startFrame={285} />
+          </AbsoluteFill>
+        )}
       </AbsoluteFill>
     </AbsoluteFill>
   );

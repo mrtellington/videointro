@@ -26,7 +26,7 @@ export const Root: React.FC = () => {
       <Composition
         id="Outro"
         component={Outro}
-        durationInFrames={360}
+        durationInFrames={540}
         fps={30}
         width={1920}
         height={1080}

@@ -5,24 +5,27 @@ import { spring, useCurrentFrame, useVideoConfig } from "remotion";
 // Each path springs in with a staggered delay for a kinetic "build" effect.
 // transform-box: fill-box + transform-origin: center scales each path from its own center.
 
-export const StoneIcon: React.FC = () => {
+export const StoneIcon: React.FC<{ startFrame?: number }> = ({
+  startFrame = 0,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const f = Math.max(0, frame - startFrame);
 
   const path1Scale = spring({
-    frame,
+    frame: f,
     fps,
     config: { damping: 10, stiffness: 260, mass: 0.5 },
   });
 
   const path2Scale = spring({
-    frame: frame - 7,
+    frame: f - 7,
     fps,
     config: { damping: 10, stiffness: 260, mass: 0.5 },
   });
 
   const path3Scale = spring({
-    frame: frame - 14,
+    frame: f - 14,
     fps,
     config: { damping: 8, stiffness: 300, mass: 0.4 },
   });
