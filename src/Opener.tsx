@@ -23,48 +23,81 @@ export const Opener: React.FC<OpenerProps> = ({ title, subtitle, date }) => {
   const { fps } = useVideoConfig();
 
   // ─── Phase timings (frames @ 30fps) ─────────────────────────────────
-  // 0–60   (0–2s):   Stone paths spring in one by one
-  // 60–110 (2–3.7s): Cross-dissolve: stone fades out, full logo fades in
-  // 110–280 (3.7–9.3s): Logo holds centered
-  // 280–310 (9.3–10.3s): Logo snaps up + scales down (kinetic)
-  // 295–540 (9.8–18s): Title card slams in line by line, holds
-  // 540–600 (18–20s): Fade to black
+  // 0–60    (0–2s):    Stone paths spring in one by one
+  // 60–135  (2–4.5s):  Stone holds with beat pulse + teal glow
+  // 120–175 (4–5.8s):  Stone spins out (360° + scale to 0)
+  // 135–195 (4.5–6.5s):Full logo slams in from above with bounce
+  // 195–295 (6.5–9.8s):Logo holds centered
+  // 290–320 (9.7–10.7s):Logo flies off left (dramatic exit)
+  // 305–385 (10.2–12.8s):Title crashes in centered
+  // 385–540 (12.8–18s): Title holds
+  // 540–600 (18–20s):   Fade to black
 
   // Background fade: black → #0e1237
   const bgOpacity = interpolate(frame, [0, 12], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  // Stone: quick fade in, hold, then kinetic "push" before dissolve
-  const stonePush = interpolate(frame, [55, 72], [1, 1.09], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+  // ── Beat pulse (approx 92 BPM = beat every ~19.6 frames, round to 20) ──
+  // Resets each beat creating a snappy percussive scale/glow effect
+  const BEAT = 20;
+  const beatFrame = frame % BEAT;
+  const beatPulse = spring({
+    frame: beatFrame,
+    fps,
+    config: { damping: 5, stiffness: 1200, mass: 0.08 },
   });
+  // Only apply pulse during stone hold phase
+  const inPulsePhase = frame >= 60 && frame < 120;
+  const pulseScale = inPulsePhase ? 1 + beatPulse * 0.05 : 1;
+  const glowIntensity = inPulsePhase ? beatPulse * 28 : 0;
+
+  // ── Stone: entrance opacity, then spins out ──
   const stoneOpacity = interpolate(
     frame,
-    [0, 5, 55, 100],
+    [0, 5, 120, 175],
     [0, 1, 1, 0],
     { extrapolateRight: "clamp" }
   );
 
-  // Full logo: fades in during cross-dissolve, stays until fade-out
+  // Stone spin exit — full 360° rotation while scaling to 0
+  const spinExit = spring({
+    frame: frame - 120,
+    fps,
+    config: { damping: 20, stiffness: 280, mass: 0.9 },
+  });
+  const stoneSpinDeg = interpolate(spinExit, [0, 1], [0, 360]);
+  const stoneExitScale = interpolate(spinExit, [0, 0.65, 1], [1, 0.9, 0]);
+
+  // ── Full logo: slams in from above with bounce ──
+  const logoEnter = spring({
+    frame: frame - 135,
+    fps,
+    config: { damping: 12, stiffness: 260, mass: 0.95 },
+  });
+  const logoSlideY = interpolate(logoEnter, [0, 1], [-380, 0]);
+  const logoSlideScale = interpolate(logoEnter, [0, 1], [0.5, 1]);
+  const logoEnterOpacity = interpolate(frame, [135, 162], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // ── Logo dramatic exit: flies off to the left with a spin ──
+  const logoExit = spring({
+    frame: frame - 290,
+    fps,
+    config: { damping: 22, stiffness: 700, mass: 0.5 },
+  });
+  const logoExitX = interpolate(logoExit, [0, 1], [0, -1400]);
+  const logoExitRotate = interpolate(logoExit, [0, 1], [0, -30]);
   const logoOpacity = interpolate(
     frame,
-    [60, 110, 540, 600],
+    [135, 162, 290, 322],
     [0, 1, 1, 0],
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
-  // Logo snap: springs from center up to title-card position
-  const snapProgress = spring({
-    frame: frame - 280,
-    fps,
-    config: { damping: 22, stiffness: 500, mass: 0.7 },
-  });
-  const logoY = interpolate(snapProgress, [0, 1], [0, -195]);
-  const logoScale = interpolate(snapProgress, [0, 1], [1, 0.6]);
-
-  // Global fade to black
+  // ── Global fade to black ──
   const globalOpacity = interpolate(frame, [540, 600], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -72,45 +105,48 @@ export const Opener: React.FC<OpenerProps> = ({ title, subtitle, date }) => {
 
   return (
     <AbsoluteFill style={{ background: "black" }}>
-      {/* Background layer fades from black to brand dark */}
       <AbsoluteFill style={{ background: "#0e1237", opacity: bgOpacity }} />
 
       <Audio src={staticFile("method-man.mp3")} />
 
-      {/* Content — fades out at end */}
       <AbsoluteFill style={{ opacity: globalOpacity }}>
-        {/* Phase 1: Animated stone icon, centered */}
+        {/* ── Stone phase ── */}
         <AbsoluteFill
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             opacity: stoneOpacity,
-            transform: `scale(${stonePush})`,
+            // Combine beat pulse scale with spin-exit scale
+            transform: `rotate(${stoneSpinDeg}deg) scale(${stoneExitScale * pulseScale})`,
+            filter:
+              glowIntensity > 0
+                ? `drop-shadow(0 0 ${glowIntensity}px #00b6bf)`
+                : undefined,
           }}
         >
           <StoneIcon />
         </AbsoluteFill>
 
-        {/* Phase 2+: Full logo, springs up to make room for title */}
+        {/* ── Full logo phase: slams in from above, exits to the left ── */}
         <AbsoluteFill
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             opacity: logoOpacity,
-            transform: `translateY(${logoY}px) scale(${logoScale})`,
+            transform: `translate(${logoExitX}px, ${logoSlideY}px) scale(${logoSlideScale}) rotate(${logoExitRotate}deg)`,
           }}
         >
           <FullLogo />
         </AbsoluteFill>
 
-        {/* Phase 3: Title card slams in below the logo */}
+        {/* ── Title card: crashes in from below, centered ── */}
         <TitleCard
           title={title}
           subtitle={subtitle}
           date={date}
-          startFrame={295}
+          startFrame={305}
         />
       </AbsoluteFill>
     </AbsoluteFill>

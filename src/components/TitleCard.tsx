@@ -1,8 +1,13 @@
 import React from "react";
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  AbsoluteFill,
+  interpolate,
+  spring,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { loadFont } from "@remotion/google-fonts/Figtree";
 
-// Load Figtree weights needed for the title card
 loadFont("normal", { weights: ["300", "400", "800"] });
 const { fontFamily } = loadFont("normal");
 
@@ -25,79 +30,103 @@ export const TitleCard: React.FC<Props> = ({
 
   if (f < 0) return null;
 
-  // Each line slams up from below with a spring + stagger
-  const slamIn = (delay: number) => {
-    const progress = spring({
-      frame: f - delay,
-      fps,
-      config: { damping: 16, stiffness: 600, mass: 0.5 },
-    });
-    return {
-      transform: `translateY(${interpolate(progress, [0, 1], [65, 0])}px)`,
-      opacity: interpolate(f - delay, [0, 8], [0, 1], {
-        extrapolateLeft: "clamp",
-        extrapolateRight: "clamp",
-      }),
-    };
-  };
+  // Title: crashes in from below with scale punch — most impact
+  const titleProgress = spring({
+    frame: f,
+    fps,
+    config: { damping: 14, stiffness: 700, mass: 0.45 },
+  });
+  const titleY = interpolate(titleProgress, [0, 1], [120, 0]);
+  const titleScale = interpolate(titleProgress, [0, 0.5, 1], [0.85, 1.04, 1]);
+  const titleOpacity = interpolate(f, [0, 6], [0, 1], {
+    extrapolateRight: "clamp",
+  });
+
+  // Subtitle: slides in from left with slight delay
+  const subProgress = spring({
+    frame: f - 10,
+    fps,
+    config: { damping: 15, stiffness: 500, mass: 0.5 },
+  });
+  const subX = interpolate(subProgress, [0, 1], [-80, 0]);
+  const subOpacity = interpolate(f, [10, 20], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // Date: slides in from right with further delay
+  const dateProgress = spring({
+    frame: f - 20,
+    fps,
+    config: { damping: 16, stiffness: 400, mass: 0.5 },
+  });
+  const dateX = interpolate(dateProgress, [0, 1], [60, 0]);
+  const dateOpacity = interpolate(f, [20, 30], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
   return (
-    <div
+    // Centered vertically and horizontally on the frame
+    <AbsoluteFill
       style={{
-        position: "absolute",
-        bottom: 160,
-        left: 0,
-        right: 0,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        justifyContent: "center",
         fontFamily,
         textAlign: "center",
+        // Nudge slightly below center to feel balanced with the logo above
+        paddingTop: 80,
       }}
     >
-      {/* Line 1: Main event title */}
+      {/* Line 1: Main title — largest, boldest */}
       <div
         style={{
-          ...slamIn(0),
-          fontSize: 80,
+          transform: `translateY(${titleY}px) scale(${titleScale})`,
+          opacity: titleOpacity,
+          fontSize: 108,
           fontWeight: 800,
           color: "#ffffff",
-          letterSpacing: "-1.5px",
-          lineHeight: 1.05,
-          maxWidth: 1400,
+          letterSpacing: "-2px",
+          lineHeight: 1.0,
+          maxWidth: 1500,
         }}
       >
         {title}
       </div>
 
-      {/* Line 2: Subtitle / tagline — teal accent */}
+      {/* Line 2: Subtitle — teal, slides from left */}
       <div
         style={{
-          ...slamIn(8),
-          fontSize: 44,
+          transform: `translateX(${subX}px)`,
+          opacity: subOpacity,
+          fontSize: 58,
           fontWeight: 400,
           color: "#00b6bf",
-          marginTop: 20,
+          marginTop: 24,
           letterSpacing: "0.5px",
         }}
       >
         {subtitle}
       </div>
 
-      {/* Line 3: Date / episode — light weight, uppercase */}
+      {/* Line 3: Date — light, uppercase, slides from right */}
       <div
         style={{
-          ...slamIn(16),
-          fontSize: 26,
+          transform: `translateX(${dateX}px)`,
+          opacity: dateOpacity,
+          fontSize: 32,
           fontWeight: 300,
           color: "rgba(255,255,255,0.6)",
-          marginTop: 30,
-          letterSpacing: "4px",
+          marginTop: 36,
+          letterSpacing: "5px",
           textTransform: "uppercase",
         }}
       >
         {date}
       </div>
-    </div>
+    </AbsoluteFill>
   );
 };
+
