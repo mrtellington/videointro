@@ -23,21 +23,21 @@ export const Opener: React.FC<OpenerProps> = ({ title, subtitle, date, music = t
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // ─── Phase timings (frames @ 30fps, 750 total = 25s) ─────────────────
+  // ─── Phase timings (frames @ 30fps, 600 total = 20s) ─────────────────
   // 0–60    (0–2s):    Stone paths spring in
-  // 60–210  (2–7s):    Stone holds with beat pulse (no glow)
-  // 200–265 (6.7–8.8s):Stone spins out
-  // 215–270 (7.2–9s):  Full logo slams in from above
+  // 60–210  (2–7s):    Stone holds with beat pulse
+  // 200–265 (6.7–8.8s):Stone shrinks to 0 from center
+  // 215–270 (7.2–9s):  Full logo grows from center
   // 270–350 (9–11.7s): Logo holds
-  // 350–382 (11.7–12.7s):Logo flies off left
-  // 360–750 (12–25s):  Title card holds — no fade, abrupt stop at 750
+  // 350–382 (11.7–12.7s):Logo shrinks to 0 from center
+  // 360–600 (12–20s):  Title card grows in, holds — hard cut at 600
 
   // Background fade: black → #0e1237
   const bgOpacity = interpolate(frame, [0, 12], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  // ── Beat pulse: ~92 BPM, snappy spring reset each beat, no glow ──
+  // ── Beat pulse: ~92 BPM, snappy spring reset each beat ──
   const BEAT = 20;
   const beatFrame = frame % BEAT;
   const beatPulse = spring({
@@ -45,48 +45,37 @@ export const Opener: React.FC<OpenerProps> = ({ title, subtitle, date, music = t
     fps,
     config: { damping: 5, stiffness: 1200, mass: 0.08 },
   });
-  const inPulsePhase = frame >= 60 && frame < 210;
+  const inPulsePhase = frame >= 60 && frame < 200;
   const pulseScale = inPulsePhase ? 1 + beatPulse * 0.05 : 1;
 
-  // ── Stone: fades in, holds, then spins out ──
-  const stoneOpacity = interpolate(
-    frame,
-    [0, 5, 200, 265],
-    [0, 1, 1, 0],
-    { extrapolateRight: "clamp" }
-  );
-
-  const spinExit = spring({
+  // ── Stone: grows in (via StoneIcon springs), holds, shrinks to 0 ──
+  const stoneShrink = spring({
     frame: frame - 200,
     fps,
-    config: { damping: 20, stiffness: 280, mass: 0.9 },
+    config: { damping: 20, stiffness: 400, mass: 0.6 },
   });
-  const stoneSpinDeg = interpolate(spinExit, [0, 1], [0, 360]);
-  const stoneExitScale = interpolate(spinExit, [0, 0.65, 1], [1, 0.9, 0]);
+  const stoneShrinkScale = interpolate(stoneShrink, [0, 1], [1, 0]);
 
-  // ── Full logo: slams in from above, exits to the left ──
-  const logoEnter = spring({
+  const stoneVisible = frame < 265;
+  const stoneScale = stoneVisible ? pulseScale * stoneShrinkScale : 0;
+
+  // ── Full logo: grows from center, holds, shrinks to 0 ──
+  const logoGrow = spring({
     frame: frame - 215,
     fps,
-    config: { damping: 12, stiffness: 260, mass: 0.95 },
+    config: { damping: 13, stiffness: 300, mass: 0.8 },
   });
-  const logoSlideY = interpolate(logoEnter, [0, 1], [-380, 0]);
-  const logoSlideScale = interpolate(logoEnter, [0, 1], [0.5, 1]);
+  const logoGrowScale = interpolate(logoGrow, [0, 1], [0, 1]);
 
-  const logoExit = spring({
+  const logoShrink = spring({
     frame: frame - 350,
     fps,
-    config: { damping: 22, stiffness: 700, mass: 0.5 },
+    config: { damping: 22, stiffness: 500, mass: 0.5 },
   });
-  const logoExitX = interpolate(logoExit, [0, 1], [0, -1400]);
-  const logoExitRotate = interpolate(logoExit, [0, 1], [0, -30]);
+  const logoShrinkScale = interpolate(logoShrink, [0, 1], [1, 0]);
 
-  const logoOpacity = interpolate(
-    frame,
-    [215, 242, 350, 382],
-    [0, 1, 1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
+  const logoVisible = frame >= 215 && frame < 390;
+  const logoScale = logoVisible ? logoGrowScale * logoShrinkScale : 0;
 
   return (
     <AbsoluteFill style={{ background: "black" }}>
@@ -94,35 +83,36 @@ export const Opener: React.FC<OpenerProps> = ({ title, subtitle, date, music = t
 
       {music && <Audio src={staticFile("method-man.mp3")} />}
 
-      {/* No global fade — abrupt stop at frame 750 */}
       <AbsoluteFill>
-        {/* ── Stone phase ── */}
-        <AbsoluteFill
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: stoneOpacity,
-            transform: `rotate(${stoneSpinDeg}deg) scale(${stoneExitScale * pulseScale})`,
-          }}
-        >
-          <StoneIcon />
-        </AbsoluteFill>
+        {/* ── Stone: centered, grows in, pulses, shrinks ── */}
+        {stoneVisible && (
+          <AbsoluteFill
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transform: `scale(${stoneScale})`,
+            }}
+          >
+            <StoneIcon />
+          </AbsoluteFill>
+        )}
 
-        {/* ── Full logo: slams in from above, flies off left ── */}
-        <AbsoluteFill
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: logoOpacity,
-            transform: `translate(${logoExitX}px, ${logoSlideY}px) scale(${logoSlideScale}) rotate(${logoExitRotate}deg)`,
-          }}
-        >
-          <FullLogo />
-        </AbsoluteFill>
+        {/* ── Full logo: grows from center, shrinks to center ── */}
+        {logoVisible && (
+          <AbsoluteFill
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transform: `scale(${logoScale})`,
+            }}
+          >
+            <FullLogo />
+          </AbsoluteFill>
+        )}
 
-        {/* ── Title card: crashes in at 12s, holds to hard cut at 25s ── */}
+        {/* ── Title card: grows in from center, holds to hard cut ── */}
         <TitleCard
           title={title}
           subtitle={subtitle}

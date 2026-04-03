@@ -30,44 +30,22 @@ export const TitleCard: React.FC<Props> = ({
 
   if (f < 0) return null;
 
-  // Title: crashes in from below with scale punch — most impact
-  const titleProgress = spring({
-    frame: f,
-    fps,
-    config: { damping: 14, stiffness: 700, mass: 0.45 },
-  });
-  const titleY = interpolate(titleProgress, [0, 1], [120, 0]);
-  const titleScale = interpolate(titleProgress, [0, 0.5, 1], [0.85, 1.04, 1]);
-  const titleOpacity = interpolate(f, [0, 6], [0, 1], {
-    extrapolateRight: "clamp",
-  });
-
-  // Subtitle: slides in from left with slight delay
-  const subProgress = spring({
-    frame: f - 10,
-    fps,
-    config: { damping: 15, stiffness: 500, mass: 0.5 },
-  });
-  const subX = interpolate(subProgress, [0, 1], [-80, 0]);
-  const subOpacity = interpolate(f, [10, 20], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  // Date: slides in from right with further delay
-  const dateProgress = spring({
-    frame: f - 20,
-    fps,
-    config: { damping: 16, stiffness: 400, mass: 0.5 },
-  });
-  const dateX = interpolate(dateProgress, [0, 1], [60, 0]);
-  const dateOpacity = interpolate(f, [20, 30], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  // All lines grow from center (scale 0→1) with stagger — organic, no slides
+  const growIn = (delay: number) => {
+    const progress = spring({
+      frame: f - delay,
+      fps,
+      config: { damping: 14, stiffness: 500, mass: 0.5 },
+    });
+    const scale = interpolate(progress, [0, 1], [0, 1]);
+    const opacity = interpolate(f - delay, [0, 8], [0, 1], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    return { transform: `scale(${scale})`, opacity };
+  };
 
   return (
-    // Centered vertically and horizontally on the frame
     <AbsoluteFill
       style={{
         display: "flex",
@@ -76,15 +54,13 @@ export const TitleCard: React.FC<Props> = ({
         justifyContent: "center",
         fontFamily,
         textAlign: "center",
-        // Nudge slightly below center to feel balanced with the logo above
         paddingTop: 80,
       }}
     >
-      {/* Line 1: Main title — largest, boldest */}
+      {/* Title — grows first */}
       <div
         style={{
-          transform: `translateY(${titleY}px) scale(${titleScale})`,
-          opacity: titleOpacity,
+          ...growIn(0),
           fontSize: 108,
           fontWeight: 800,
           color: "#ffffff",
@@ -96,11 +72,10 @@ export const TitleCard: React.FC<Props> = ({
         {title}
       </div>
 
-      {/* Line 2: Subtitle — teal, slides from left */}
+      {/* Subtitle — teal, grows with slight delay */}
       <div
         style={{
-          transform: `translateX(${subX}px)`,
-          opacity: subOpacity,
+          ...growIn(8),
           fontSize: 58,
           fontWeight: 400,
           color: "#00b6bf",
@@ -111,11 +86,10 @@ export const TitleCard: React.FC<Props> = ({
         {subtitle}
       </div>
 
-      {/* Line 3: Date — light, uppercase, slides from right */}
+      {/* Date — light, grows last */}
       <div
         style={{
-          transform: `translateX(${dateX}px)`,
-          opacity: dateOpacity,
+          ...growIn(16),
           fontSize: 32,
           fontWeight: 300,
           color: "rgba(255,255,255,0.6)",
@@ -129,4 +103,3 @@ export const TitleCard: React.FC<Props> = ({
     </AbsoluteFill>
   );
 };
-
