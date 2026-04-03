@@ -16,9 +16,10 @@ export type OpenerProps = {
   title: string;
   subtitle: string;
   date: string;
+  music?: boolean;
 };
 
-export const Opener: React.FC<OpenerProps> = ({ title, subtitle, date }) => {
+export const Opener: React.FC<OpenerProps> = ({ title, subtitle, date, music = true }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
@@ -91,7 +92,7 @@ export const Opener: React.FC<OpenerProps> = ({ title, subtitle, date }) => {
     <AbsoluteFill style={{ background: "black" }}>
       <AbsoluteFill style={{ background: "#0e1237", opacity: bgOpacity }} />
 
-      <Audio src={staticFile("method-man.mp3")} />
+      {music && <Audio src={staticFile("method-man.mp3")} />}
 
       {/* No global fade — abrupt stop at frame 750 */}
       <AbsoluteFill>
