@@ -81,7 +81,7 @@ echo ""
 echo "Pass 1: Building content chain (crossfades + studio sound)..."
 
 # Segment durations (seg1 from probe, rest from source timestamps)
-S2_DUR=351.8; S3_DUR=52.7; S4_DUR=877.7; S5_DUR=408.4; S6_DUR=2338.9; S7_DUR=4017.7
+S2_DUR=351.8; S3_DUR=52.7; S4_DUR=877.7; S5_DUR=408.4; S6_DUR=2338.9; S7_DUR=4007.3
 XF=2  # crossfade duration between segments
 
 # Cumulative xfade offsets
