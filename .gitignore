@@ -1,0 +1,6 @@
+node_modules/
+out/
+.cache/
+dist/
+*.mp4
+*.mov
