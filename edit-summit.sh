@@ -17,6 +17,9 @@ WORKDIR="/Users/todellington/videointro/work"
 
 mkdir -p "$WORKDIR"
 
+# bc strips leading zeros (.9 instead of 0.9) — ffmpeg rejects that
+calc() { echo "scale=3; $1" | bc | sed 's/^\./0./;s/^-\./-0./'; }
+
 echo "════════════════════════════════════════════════════════════"
 echo " Operations Summit Day 1 — Full Edit"
 echo "════════════════════════════════════════════════════════════"
@@ -38,14 +41,14 @@ SEG1_END=2115.0    # 35:15 in seconds
 echo ""
 echo "Pass 0: Editing segment 1 (word splice @ ~36s)..."
 
-SEG1A_DUR=$(echo "$WE_END - 6.8" | bc)
-SEG1B_DUR=$(echo "$OF_END - $SPEND_START" | bc)
-SEG1C_DUR=$(echo "$SEG1_END - $TIME_START" | bc)
+SEG1A_DUR=$(echo "$WE_END - 6.8" | bc | sed 's/^\./0./;s/^-\./-0./')
+SEG1B_DUR=$(echo "$OF_END - $SPEND_START" | bc | sed 's/^\./0./;s/^-\./-0./')
+SEG1C_DUR=$(echo "$SEG1_END - $TIME_START" | bc | sed 's/^\./0./;s/^-\./-0./')
 XF_DUR=0.06
 
 # Offset for second micro-xfade = seg1a + seg1b - 2 * xfade
-XF1_OFFSET=$(echo "$SEG1A_DUR - $XF_DUR" | bc)
-XF2_OFFSET=$(echo "$SEG1A_DUR + $SEG1B_DUR - 2 * $XF_DUR" | bc)
+XF1_OFFSET=$(echo "$SEG1A_DUR - $XF_DUR" | bc | sed 's/^\./0./;s/^-\./-0./')
+XF2_OFFSET=$(echo "$SEG1A_DUR + $SEG1B_DUR - 2 * $XF_DUR" | bc | sed 's/^\./0./;s/^-\./-0./')
 
 ffmpeg -y -loglevel warning -stats \
   -ss 6.8 -t "$SEG1A_DUR" -i "$SRC" \
@@ -82,15 +85,15 @@ S2_DUR=351.8; S3_DUR=52.7; S4_DUR=877.7; S5_DUR=408.4; S6_DUR=2338.9; S7_DUR=401
 XF=2  # crossfade duration between segments
 
 # Cumulative xfade offsets
-XO1=$(echo "$SEG1_DUR - $XF" | bc)
-CUM1=$(echo "$SEG1_DUR + $S2_DUR - $XF" | bc)
-XO2=$(echo "$CUM1 - $XF" | bc)
-CUM2=$(echo "$CUM1 + $S3_DUR - $XF" | bc)
-XO3=$(echo "$CUM2 - $XF" | bc)
-CUM3=$(echo "$CUM2 + $S4_DUR - $XF" | bc)
-XO4=$(echo "$CUM3 - $XF" | bc)
-CUM4=$(echo "$CUM3 + $S5_DUR - $XF" | bc)
-XO5=$(echo "$CUM4 - $XF" | bc)
+XO1=$(echo "$SEG1_DUR - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
+CUM1=$(echo "$SEG1_DUR + $S2_DUR - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
+XO2=$(echo "$CUM1 - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
+CUM2=$(echo "$CUM1 + $S3_DUR - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
+XO3=$(echo "$CUM2 - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
+CUM3=$(echo "$CUM2 + $S4_DUR - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
+XO4=$(echo "$CUM3 - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
+CUM4=$(echo "$CUM3 + $S5_DUR - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
+XO5=$(echo "$CUM4 - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
 
 echo "  xfade offsets: $XO1 | $XO2 | $XO3 | $XO4 | $XO5"
 
@@ -150,14 +153,14 @@ echo "Pass 2: Adding opener + outro with crossfades..."
 # Opener xfade: starts at 19s (last 1s of opener blends into content)
 # After opener xfade: duration = 20 + content - 1
 OPENER_XF_OFFSET=19
-WITH_OPENER_DUR=$(echo "20 + $CONTENT_DUR - 1" | bc)
+WITH_OPENER_DUR=$(echo "20 + $CONTENT_DUR - 1" | bc | sed 's/^\./0./;s/^-\./-0./')
 
 # Outro xfade: starts 1s before the end of the opener+content
-OUTRO_XF_OFFSET=$(echo "$WITH_OPENER_DUR - 1" | bc)
+OUTRO_XF_OFFSET=$(echo "$WITH_OPENER_DUR - 1" | bc | sed 's/^\./0./;s/^-\./-0./')
 
 # Total final duration = with_opener + 18 (outro) - 1 (xfade)
-FINAL_DUR=$(echo "$WITH_OPENER_DUR + 18 - 1" | bc)
-FINAL_MINS=$(echo "$FINAL_DUR / 60" | bc)
+FINAL_DUR=$(echo "$WITH_OPENER_DUR + 18 - 1" | bc | sed 's/^\./0./;s/^-\./-0./')
+FINAL_MINS=$(echo "$FINAL_DUR / 60" | bc | sed 's/^\./0./;s/^-\./-0./')
 
 echo "  Content: ${CONTENT_DUR}s"
 echo "  Outro xfade offset: ${OUTRO_XF_OFFSET}"
@@ -177,7 +180,7 @@ CH5_START=$((CH4_END + 1))
 CH5_END=$(echo "($OPENER_XF_OFFSET + $XO5) * 1000" | bc | cut -d. -f1)
 CH6_START=$((CH5_END + 1))
 # Seg6 ends where seg7 starts (concat, no xfade)
-CUM5=$(echo "$CUM4 + $S6_DUR - $XF" | bc)
+CUM5=$(echo "$CUM4 + $S6_DUR - $XF" | bc | sed 's/^\./0./;s/^-\./-0./')
 CH6_END=$(echo "($OPENER_XF_OFFSET + $CUM5) * 1000" | bc | cut -d. -f1)
 CH7_START=$((CH6_END + 1))
 CH7_END=$(echo "($FINAL_DUR - 18) * 1000" | bc | cut -d. -f1)
