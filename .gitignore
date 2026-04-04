@@ -4,3 +4,4 @@ out/
 dist/
 *.mp4
 *.mov
+.DS_Store

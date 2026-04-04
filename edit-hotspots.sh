@@ -13,7 +13,7 @@ WORKDIR="/Users/todellington/videointro/work"
 
 mkdir -p "$WORKDIR"
 
-AUDIO_FILTER="highpass=f=80,afftdn=nt=w:om=o,equalizer=f=180:t=q:w=1:g=-3,equalizer=f=3500:t=q:w=1.5:g=3,acompressor=threshold=-20dB:ratio=3:attack=10:release=200,loudnorm=I=-14:LRA=7:TP=-2"
+AUDIO_FILTER="highpass=f=80,afftdn=nt=w:om=o,equalizer=f=180:t=q:w=1:g=-3,equalizer=f=3500:t=q:w=1.5:g=3,acompressor=threshold=-20dB:ratio=3:attack=10:release=200"
 
 echo "════════════════════════════════════════════════════════════"
 echo " Hot Spots Activity Summary — Full Edit"
@@ -29,7 +29,7 @@ ffmpeg -y -loglevel warning -stats \
   -vf "fps=24,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:-1:-1:color=0x0e1237,setsar=1,format=yuv420p,setpts=PTS-STARTPTS" \
   -af "aformat=sample_rates=48000:channel_layouts=stereo,asetpts=PTS-STARTPTS,${AUDIO_FILTER}" \
   -c:v libx264 -preset medium -crf 20 \
-  -c:a aac -ar 48000 -b:a 192k \
+  -c:a aac -profile:a aac_low -ar 48000 -b:a 128k \
   "$WORKDIR/hotspots-content.mp4"
 
 CONTENT_DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$WORKDIR/hotspots-content.mp4")
@@ -48,7 +48,7 @@ ffmpeg -y -loglevel warning -stats \
   -i "$OUTRO" \
   -filter_complex "
     [0:v]fps=24,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:-1:-1,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v0];
-    [0:a]aresample=48000,aformat=channel_layouts=stereo,asetpts=PTS-STARTPTS,loudnorm=I=-14:LRA=7:TP=-2[a0];
+    [0:a]aresample=48000,aformat=channel_layouts=stereo,asetpts=PTS-STARTPTS,volume=1.5[a0];
     [1:v]settb=1/24,fps=24,format=yuv420p[vc];
     [1:a]asetpts=PTS-STARTPTS[ac];
     [2:v]fps=24,scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:-1:-1,setsar=1,format=yuv420p,setpts=PTS-STARTPTS[v2];
@@ -61,7 +61,7 @@ ffmpeg -y -loglevel warning -stats \
   " \
   -map "[vout]" -map "[aout]" \
   -c:v libx264 -preset medium -crf 20 \
-  -c:a aac -ar 48000 -b:a 192k \
+  -c:a aac -profile:a aac_low -ar 48000 -b:a 128k \
   -movflags +faststart \
   "$OUTPUT"
 
