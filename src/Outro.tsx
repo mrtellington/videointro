@@ -80,10 +80,6 @@ export const Outro: React.FC<OutroProps> = ({
     extrapolateRight: "clamp",
   });
 
-  // Beat pulse on text during hold
-  const inTextPulse = frame >= 55 && frame < 155;
-  const textPulse = inTextPulse ? 1 + beatPulse * 0.03 : 1;
-
   // Text shrinks to 0 from center
   const textShrink = spring({
     frame: frame - 155,
@@ -92,10 +88,10 @@ export const Outro: React.FC<OutroProps> = ({
   });
   const textShrinkScale = interpolate(textShrink, [0, 1], [1, 0]);
 
-  // Combined text scale
+  // Combined text scale (no beat pulse — pulse stays on stone only)
   const textVisible = frame < 195;
   const textScale = textVisible
-    ? textGrowScale * textPulse * textShrinkScale
+    ? textGrowScale * textShrinkScale
     : 0;
   const textOpacity = frame < 195 ? 1 : 0;
 
@@ -134,7 +130,7 @@ export const Outro: React.FC<OutroProps> = ({
 
   // Stone pulse during beat section
   const inStonePulse = frame >= 360 && frame < 470;
-  const stonePulse = inStonePulse ? 1 + beatPulse * 0.05 : 1;
+  const stonePulse = inStonePulse ? 1 + beatPulse * 0.18 : 1;
 
   // Stone shrinks to 0
   const stoneShrink = spring({

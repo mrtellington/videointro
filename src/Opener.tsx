@@ -46,7 +46,7 @@ export const Opener: React.FC<OpenerProps> = ({ title, subtitle, date, music = t
     config: { damping: 5, stiffness: 1200, mass: 0.08 },
   });
   const inPulsePhase = frame >= 60 && frame < 200;
-  const pulseScale = inPulsePhase ? 1 + beatPulse * 0.05 : 1;
+  const pulseScale = inPulsePhase ? 1 + beatPulse * 0.18 : 1;
 
   // ── Stone: grows in (via StoneIcon springs), holds, shrinks to 0 ──
   const stoneShrink = spring({
